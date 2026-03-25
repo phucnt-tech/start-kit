@@ -25,6 +25,7 @@ PRESETS = {
 }
 GLOBAL_CONFIG = Path.home() / ".starter-kit" / "config.json"
 PROJECT_CONFIG_NAME = ".starter-kit.config.json"
+CONTEXT_TEMPLATE = KIT_ROOT / "core" / "CONTEXT_PACK.md"
 
 
 def copy_tree(src: Path, dest_root: Path, dry_run: bool) -> None:
@@ -173,7 +174,72 @@ def main(argv: list[str]) -> int:
 
     p_test.set_defaults(func=_test)
 
+    p_ctx = sub.add_parser("context", help="manage context packs (new/resume)")
+    ctx_sub = p_ctx.add_subparsers(dest="ctx_cmd", required=True)
+
+    p_ctx_new = ctx_sub.add_parser("new", help="create context pack for project/feature")
+    p_ctx_new.add_argument("project")
+    p_ctx_new.add_argument("feature")
+    p_ctx_new.add_argument("--target", default=".", help="root dir (default: cwd)")
+
+    def _ctx_new(args):
+        root = Path(args.target).resolve()
+        dir_path = root / "contexts" / args.project / args.feature
+        dir_path.mkdir(parents=True, exist_ok=True)
+        ctx = dir_path / "context.md"
+        notes = dir_path / f"notes-{Path.cwd().stem or 'today'}.md"
+        # notes file named by date
+        notes = dir_path / f"notes-{__import__('datetime').datetime.now().strftime('%Y%m%d')}.md"
+        if not ctx.exists():
+            if CONTEXT_TEMPLATE.exists():
+                ctx.write_text(CONTEXT_TEMPLATE.read_text())
+            else:
+                ctx.touch()
+            print(f"created {ctx}")
+        else:
+            print(f"exists {ctx}")
+        if not notes.exists():
+            notes.write_text(f"# Notes {__import__('datetime').datetime.now().date()}\n")
+            print(f"created {notes}")
+        else:
+            print(f"exists {notes}")
+        print("Context pack ready.")
+        return 0
+
+    p_ctx_new.set_defaults(func=_ctx_new)
+
+    p_ctx_resume = ctx_sub.add_parser("resume", help="show latest context + notes path")
+    p_ctx_resume.add_argument("project")
+    p_ctx_resume.add_argument("feature")
+    p_ctx_resume.add_argument("--target", default=".", help="root dir (default: cwd)")
+
+    def _ctx_resume(args):
+        root = Path(args.target).resolve()
+        dir_path = root / "contexts" / args.project / args.feature
+        ctx = dir_path / "context.md"
+        latest_notes = None
+        if dir_path.exists():
+            notes_candidates = sorted(dir_path.glob("notes-*.md"))
+            if notes_candidates:
+                latest_notes = notes_candidates[-1]
+        print(f"== Resume: {args.project}/{args.feature} ==")
+        if ctx.exists():
+            print(f"Context: {ctx}")
+        else:
+            print("Context missing (run context new)")
+        if latest_notes:
+            print(f"Latest notes: {latest_notes}")
+        else:
+            print("No notes found")
+        print("Checklist: 1) git status/diff 2) read context.md 3) tail notes 4) rerun failing tests")
+        return 0
+
+    p_ctx_resume.set_defaults(func=_ctx_resume)
+
     args = parser.parse_args(argv)
+    if hasattr(args, "ctx_cmd") and args.ctx_cmd is None:
+        parser.print_help()
+        return 1
     return args.func(args)
 
 

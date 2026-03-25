@@ -22,9 +22,13 @@ python .starter-kit/kitcli.py validate --preset python --target .
 # Thiết lập skills path (ưu tiên: --skills-path > .starter-kit.config.json > ~/.starter-kit/config.json)
 python .starter-kit/kitcli.py init --preset python --skills-path /path/to/skills
 python .starter-kit/kitcli.py validate --preset python --skills-path /path/to/skills
+# Quản lý context
+python .starter-kit/kitcli.py context new <project> <feature>
+python .starter-kit/kitcli.py context resume <project> <feature>
 ```
 - `init`: copy files; existing files get `.new`.
 - `validate`/`test`: check expected kit files (accepts `.new`) và in ra skills_path nếu có.
+- `context new/resume`: tạo và xem context pack/notes cho project/feature.
 
 ## Skills path (tuỳ chọn)
 - Per-project: tạo file `.starter-kit.config.json` tại root repo:
@@ -33,7 +37,7 @@ python .starter-kit/kitcli.py validate --preset python --skills-path /path/to/sk
 ```
 - Global: `~/.starter-kit/config.json` với cùng cấu trúc.
 - Ưu tiên: flag CLI `--skills-path` > project config > global config. Không đặt cũng không sao.
-```
+
 ## Idempotency
 - Running again will not overwrite existing files; duplicates go to `.new`.
 - Safe to re-run after pulling kit updates.
