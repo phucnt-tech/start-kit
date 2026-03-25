@@ -2,15 +2,17 @@
 """
 Starter Kit CLI
 Commands:
-  init [--preset python|java-maven] [--target DIR] [--dry-run]
-  validate [--preset python|java-maven] [--target DIR]
+  init [--preset python|java-maven] [--target DIR] [--skills-path PATH] [--dry-run]
+  validate [--preset python|java-maven] [--target DIR] [--skills-path PATH]
   test -> alias of validate
 
 Behavior:
 - Copies kit files into target dir. If a file exists, writes .new sibling.
 - Validate checks that expected files from core and selected preset exist.
+- Skills path is resolved with precedence: CLI flag > project config > global config.
 """
 import argparse
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -21,6 +23,8 @@ PRESETS = {
     "python": KIT_ROOT / "presets" / "python",
     "java-maven": KIT_ROOT / "presets" / "java-maven",
 }
+GLOBAL_CONFIG = Path.home() / ".starter-kit" / "config.json"
+PROJECT_CONFIG_NAME = ".starter-kit.config.json"
 
 
 def copy_tree(src: Path, dest_root: Path, dry_run: bool) -> None:
@@ -39,6 +43,28 @@ def copy_tree(src: Path, dest_root: Path, dry_run: bool) -> None:
             print(f"copied: {dest_file.relative_to(dest_root)}")
 
 
+def load_config(target: Path, cli_skills: str | None) -> tuple[str | None, str]:
+    project_cfg = target / PROJECT_CONFIG_NAME
+    sources = []
+    if cli_skills:
+        return cli_skills, "cli"
+    if project_cfg.exists():
+        try:
+            data = json.loads(project_cfg.read_text())
+            if isinstance(data, dict) and "skills_path" in data:
+                return str(data["skills_path"]), f"project:{project_cfg.name}"
+        except Exception:
+            pass
+    if GLOBAL_CONFIG.exists():
+        try:
+            data = json.loads(GLOBAL_CONFIG.read_text())
+            if isinstance(data, dict) and "skills_path" in data:
+                return str(data["skills_path"]), f"global:{GLOBAL_CONFIG}"
+        except Exception:
+            pass
+    return None, "default"
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     target = Path(args.target).resolve()
     dry_run = args.dry_run
@@ -49,8 +75,13 @@ def cmd_init(args: argparse.Namespace) -> int:
             print(f"Invalid preset: {args.preset}", file=sys.stderr)
             return 1
         copy_tree(preset_dir, target, dry_run)
+    skills_path, source = load_config(target, args.skills_path)
     if not dry_run:
         print("Done. Review any *.new files and run make setup && make check.")
+    if skills_path:
+        print(f"Effective skills_path: {skills_path} (source: {source})")
+    else:
+        print("skills_path not set (optional). Set via --skills-path, project .starter-kit.config.json, or ~/.starter-kit/config.json")
     return 0
 
 
@@ -107,7 +138,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
         for m in missing:
             print(f"  {m}")
         return 1
-    print("Validate OK")
+    skills_path, source = load_config(target, args.skills_path)
+    if skills_path:
+        print(f"Validate OK. Effective skills_path: {skills_path} (source: {source})")
+    else:
+        print("Validate OK. skills_path not set (optional).")
     return 0
 
 
@@ -118,17 +153,20 @@ def main(argv: list[str]) -> int:
     p_init = sub.add_parser("init", help="copy kit into target directory")
     p_init.add_argument("--preset", choices=list(PRESETS.keys()), help="preset to apply")
     p_init.add_argument("--target", default=".", help="target directory (default: cwd)")
+    p_init.add_argument("--skills-path", help="path to skills directory (overrides config)")
     p_init.add_argument("--dry-run", action="store_true")
     p_init.set_defaults(func=cmd_init)
 
     p_val = sub.add_parser("validate", help="check required kit files exist")
     p_val.add_argument("--preset", choices=list(PRESETS.keys()), default=None, nargs="?")
     p_val.add_argument("--target", default=".", help="target directory (default: cwd)")
+    p_val.add_argument("--skills-path", help="path to skills directory (overrides config)")
     p_val.set_defaults(func=cmd_validate)
 
     p_test = sub.add_parser("test", help="alias of validate")
     p_test.add_argument("--preset", choices=list(PRESETS.keys()), default=None, nargs="?")
     p_test.add_argument("--target", default=".", help="target directory (default: cwd)")
+    p_test.add_argument("--skills-path", help="path to skills directory (overrides config)")
 
     def _test(args):
         return cmd_validate(args)
