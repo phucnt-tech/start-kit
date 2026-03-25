@@ -9,11 +9,20 @@ This kit adds predictable hygiene, docs, and automation to any repo. Run `bash s
   - **java-maven**: spotless+checkstyle+spotbugs wiring, make targets, env example, Maven wrapper-friendly.
 
 ## Usage
+Option A (shell):
 1) From repo root: `bash starter-kit/apply.sh --preset python` (or `java-maven`).
 2) Review any `*.new` files if there were conflicts; merge manually.
 3) Run `make setup && make check` (or the preset's commands printed after apply).
 4) Fill the templates (STRUCTURE, PITFALLS, DECISIONS/ADR, CONTEXT_PACK) with your repo info.
 
+Option B (CLI Python):
+```bash
+python starter-kit/kitcli.py init --preset python --target .
+python starter-kit/kitcli.py validate --preset python --target .
+```
+- `init`: copy files; existing files get `.new`.
+- `validate`/`test`: check expected kit files (accepts `.new`).
+```
 ## Idempotency
 - Running again will not overwrite existing files; duplicates go to `.new`.
 - Safe to re-run after pulling kit updates.
