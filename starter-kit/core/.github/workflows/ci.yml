@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up tools
+        run: |
+          echo "TODO: set up toolchain per preset (python or java)"
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
